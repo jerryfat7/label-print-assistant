@@ -17,6 +17,15 @@ def health():
     return {"status": "ok", "strategy": address_parser.get_strategy_name()}
 
 
+@router.get("/readiness")
+def readiness():
+    """Software readiness; detecting a helper is not proof of physical output."""
+    state = printer_service.status()
+    state["printers"] = printer_service.get_printers() if state["ready"] else []
+    state["printReady"] = bool(state["printers"])
+    return state
+
+
 # ---- 打印机管理 ----
 
 @router.get("/printers")

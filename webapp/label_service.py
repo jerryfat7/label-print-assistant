@@ -5,12 +5,10 @@
 可通过 API 传入自定义参数覆盖默认值。
 """
 
-import threading
-import time
 from dataclasses import dataclass, field, asdict
 from typing import Callable, Optional
 
-from . import printer_service
+from . import printer_service, task_service
 
 
 # ============================================================
@@ -178,82 +176,31 @@ def build_template(
 # 绘制单张标签（核心逻辑）
 # ============================================================
 
-def _draw_label(
-    api,
-    name: str,
-    phone: str,
-    address: str,
-    template: LabelTemplate,
-    for_preview: bool = False,
-) -> None:
-    """
-    在已 start_job 的上下文中绘制标签内容。
-    所有坐标单位：毫米。
-
-    name    → 模板的 name 字段位置
-    phone   → 模板的 phone 字段位置（自动加 ☎ 前缀）
-    address → 模板的 address 字段位置
-    """
-    # 标题
-    api.draw_text(
-        template.title.text,
-        x=template.title.x,
-        y=template.title.y,
-        width=template.title.width,
-        height=template.title.height,
-        fontHeight=template.title.fontHeight,
-        fontStyle=template.title.fontStyle,
-        horizontalAlignment=template.title.horizontalAlignment,
-        verticalAlignment=template.title.verticalAlignment,
-    )
-
-    # 姓名
-    api.draw_text(
-        name,
-        x=template.name.x,
-        y=template.name.y,
-        width=template.name.width,
-        height=template.name.height,
-        fontHeight=template.name.fontHeight,
-        fontStyle=template.name.fontStyle,
-        horizontalAlignment=template.name.horizontalAlignment,
-        verticalAlignment=template.name.verticalAlignment,
-    )
-
-    # 电话 / ID
+def _label_elements(name: str, phone: str, address: str, template: LabelTemplate) -> list[dict]:
     phone_text = f"☎ {phone}" if phone and template.showPhoneIcon else phone
-    if phone_text:
-        api.draw_text(
-            phone_text,
-            x=template.phone.x,
-            y=template.phone.y,
-            width=template.phone.width,
-            height=template.phone.height,
-            fontHeight=template.phone.fontHeight,
-            fontStyle=template.phone.fontStyle,
-            horizontalAlignment=template.phone.horizontalAlignment,
-            verticalAlignment=template.phone.verticalAlignment,
-        )
+    elements = []
+    for style, text in [(template.title, template.title.text), (template.name, name),
+                        (template.phone, phone_text), (template.address, address)]:
+        # Empty text becomes "no content!" in the Linux helper. Hidden fields stay hidden.
+        if not text or style.height <= 0 or style.fontHeight <= 0:
+            continue
+        element = asdict(style)
+        element.update(type="text", text=text)
+        elements.append(element)
+    return elements
 
-    # 地址（到市）
-    if address:
-        api.draw_text(
-            address,
-            x=template.address.x,
-            y=template.address.y,
-            width=template.address.width,
-            height=template.address.height,
-            fontHeight=template.address.fontHeight,
-            fontStyle=template.address.fontStyle,
-            horizontalAlignment=template.address.horizontalAlignment,
-            verticalAlignment=template.address.verticalAlignment,
-        )
+
+def _draw_label(api, name: str, phone: str, address: str, template: LabelTemplate,
+                for_preview: bool = False) -> None:
+    for element in _label_elements(name, phone, address, template):
+        api.draw_text(**{key: value for key, value in element.items() if key != "type"})
 
 
 # ============================================================
 # 生成预览图
 # ============================================================
 
+@printer_service.serialized
 def generate_preview(
     name: str,
     phone: str,
@@ -284,83 +231,12 @@ def generate_preview(
             except Exception:
                 pass  # 预览模式允许未连接打印机
 
-    # 构建页面元素
-    elements = [
-        {
-            "type": "text",
-            "text": template.title.text,
-            "x": template.title.x,
-            "y": template.title.y,
-            "width": template.title.width,
-            "height": template.title.height,
-            "fontHeight": template.title.fontHeight,
-            "fontStyle": template.title.fontStyle,
-            "horizontalAlignment": template.title.horizontalAlignment,
-            "verticalAlignment": template.title.verticalAlignment,
-        },
-        {
-            "type": "text",
-            "text": name,
-            "x": template.name.x,
-            "y": template.name.y,
-            "width": template.name.width,
-            "height": template.name.height,
-            "fontHeight": template.name.fontHeight,
-            "fontStyle": template.name.fontStyle,
-            "horizontalAlignment": template.name.horizontalAlignment,
-            "verticalAlignment": template.name.verticalAlignment,
-        },
-    ]
-    if phone:
-        elements.append({
-            "type": "text",
-            "text": f"☎ {phone}",
-            "x": template.phone.x,
-            "y": template.phone.y,
-            "width": template.phone.width,
-            "height": template.phone.height,
-            "fontHeight": template.phone.fontHeight,
-            "fontStyle": template.phone.fontStyle,
-            "horizontalAlignment": template.phone.horizontalAlignment,
-            "verticalAlignment": template.phone.verticalAlignment,
-        })
-    if address:
-        elements.append({
-            "type": "text",
-            "text": address,
-            "x": template.address.x,
-            "y": template.address.y,
-            "width": template.address.width,
-            "height": template.address.height,
-            "fontHeight": template.address.fontHeight,
-            "fontStyle": template.address.fontStyle,
-            "horizontalAlignment": template.address.horizontalAlignment,
-            "verticalAlignment": template.address.verticalAlignment,
-        })
+    elements = _label_elements(name, phone, address, template)
 
-    result = api.print(
-        0x0082,  # 透明底色预览
-        printerInfo={
-            "printerName": printer_service.get_printer_info().get("name", ""),
-        },
-        jobInfo={
-            "jobWidth": template.labelWidth,
-            "jobHeight": template.labelHeight,
-            "orientation": 0,
-        },
-        jobPages=[elements],
+    return printer_service.preview(
+        {"jobWidth": template.labelWidth, "jobHeight": template.labelHeight, "orientation": 0},
+        [elements],
     )
-
-    # 提取预览数据
-    if isinstance(result, dict) and "previewData" in result:
-        preview_list = result["previewData"]
-        if isinstance(preview_list, list) and len(preview_list) > 0:
-            data = preview_list[0]
-            if isinstance(data, str):
-                return data
-            if isinstance(data, list):
-                return ''.join(data)
-    return ""
 
 
 # ============================================================
@@ -368,19 +244,13 @@ def generate_preview(
 # ============================================================
 
 # 取消标志
-_cancel_flags: dict[str, bool] = {}
-_cancel_lock = threading.Lock()
-
-
 def cancel_task(task_id: str) -> None:
     """取消指定打印任务"""
-    with _cancel_lock:
-        _cancel_flags[task_id] = True
+    task_service.cancel(task_id)
 
 
 def _is_cancelled(task_id: str) -> bool:
-    with _cancel_lock:
-        return _cancel_flags.get(task_id, False)
+    return task_service.is_cancelled(task_id)
 
 
 def execute_print(
@@ -405,60 +275,22 @@ def execute_print(
         on_progress: 进度回调 fn(current, total, status, item, error)
     """
     template = build_template(template_overrides, base_template)
-    api = printer_service.get_raw_api()
-    total = len(items)
-
-    with _cancel_lock:
-        _cancel_flags[task_id] = False
-
-    # 打开打印机
-    if not api.open_printer(name=printer_name):
-        if on_progress:
-            on_progress(0, total, "error", None, f"无法连接打印机: {printer_name}")
-        return
-
-    for idx, item in enumerate(items):
-        if _is_cancelled(task_id):
-            if on_progress:
-                on_progress(idx, total, "cancelled", item, None)
-            break
-
-        current = idx + 1
-        label_name = item.get("name", "") or "未知"
-
-        try:
-            if on_progress:
-                on_progress(current, total, "printing", item, None)
-
-            _print_single(api, item, template, copies)
-
-            if on_progress:
-                on_progress(current, total, "done", item, None)
-
-            time.sleep(0.3)  # 打印间隔，避免打印机缓冲区溢出
-
-        except Exception as e:
-            if on_progress:
-                on_progress(current, total, "error", item, str(e))
-
-    # 关闭打印机
-    api.close_printer()
-
-    # 清理取消标志
-    with _cancel_lock:
-        _cancel_flags.pop(task_id, None)
-
-    if on_progress:
-        on_progress(total, total, "finished", None, None)
+    task_service.run_batch(
+        task_id, items, printer_name,
+        lambda api, item: _print_single(api, item, template, copies, task_id),
+        on_progress,
+    )
 
 
-def _print_single(api, item: dict, template: LabelTemplate, copies: int) -> None:
+def _print_single(api, item: dict, template: LabelTemplate, copies: int, task_id: str) -> None:
     """打印单张标签"""
     name = item.get("name", "") or ""
     phone = item.get("phone", "") or ""
     address = item.get("address", "") or ""
 
     for _ in range(max(1, copies)):
+        if task_service.is_cancelled(task_id):
+            return
         if not api.start_job(template.labelWidth, template.labelHeight):
             raise RuntimeError("创建打印任务失败")
 

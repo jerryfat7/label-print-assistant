@@ -600,8 +600,11 @@ function listenProgress(taskId, total) {
                 finishPrint();
                 break;
             case 'finished':
-                dom.progressStatus.textContent = '✅ 全部打印完成!';
-                dom.progressBar.classList.add('bg-success');
+                dom.progressStatus.textContent = error
+                    ? `❌ 打印任务失败: ${error}`
+                    : '✅ 全部标签已提交打印';
+                dom.progressBar.classList.remove('bg-primary', 'bg-success', 'bg-danger');
+                dom.progressBar.classList.add(error ? 'bg-danger' : 'bg-success');
                 es.close();
                 finishPrint();
                 break;

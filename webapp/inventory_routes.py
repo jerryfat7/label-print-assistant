@@ -4,17 +4,12 @@
 供闲鱼库存管理系统（电脑A）通过局域网 HTTP 调用。
 """
 
-import asyncio
-import json
-import threading
-import uuid
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import label_service
-from .address_routes import _get_or_create_queue, _remove_queue, _progress_item
+from . import task_service
 
 router = APIRouter(prefix="/api/inventory-label", tags=["库存标签"])
 
@@ -51,7 +46,7 @@ class PrintRequest(BaseModel):
     labelType: str = Field("product", description="'box' | 'product'")
     printerName: str
     template: dict | None = None
-    copies: int = 1
+    copies: int = Field(1, ge=1, le=100)
 
 
 class TemplateResponse(BaseModel):
@@ -89,49 +84,23 @@ def get_default_template(label_type: str):
 
 @router.post("/print")
 async def start_print(req: PrintRequest):
-    task_id = str(uuid.uuid4())[:8]
     if not req.items:
         raise HTTPException(400, "没有要打印的数据")
 
     base = req.labelType if req.labelType in ("box", "product") else "product"
-    _get_or_create_queue(task_id)
 
     items = [{"name": it.name, "phone": it.phone, "address": it.address}
              for it in req.items]
-
-    def on_progress(current, total, status, item, error):
-        _progress_item(task_id, current, total, status, item, error)
-
-    thread = threading.Thread(
-        target=label_service.execute_print,
-        args=(task_id, items, req.printerName, req.template, base, req.copies),
-        kwargs={"on_progress": on_progress},
-        daemon=True,
+    task_id = task_service.submit(
+        label_service.execute_print, len(items),
+        items, req.printerName, req.template, base, req.copies,
     )
-    thread.start()
     return {"taskId": task_id, "total": len(req.items)}
 
 
 @router.get("/print/{task_id}/status")
 async def print_status(task_id: str):
-    q = _get_or_create_queue(task_id)
-
-    async def event_stream():
-        while True:
-            try:
-                msg = await asyncio.wait_for(q.get(), timeout=30)
-                yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
-                if msg["status"] in ("finished", "cancelled"):
-                    break
-            except asyncio.TimeoutError:
-                yield f"data: {json.dumps({'status': 'timeout'})}\n\n"
-                break
-        _remove_queue(task_id)
-
-    return StreamingResponse(
-        event_stream(), media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return task_service.stream(task_id)
 
 
 @router.post("/print/{task_id}/cancel")

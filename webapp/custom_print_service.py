@@ -8,12 +8,9 @@
 行为与现有标签打印保持一致：异步任务 + SSE 逐张进度 + 可取消。
 """
 
-import threading
-import time
 from typing import Callable, Optional
 
-from . import printer_service
-from .label_service import _cancel_flags, _cancel_lock, _is_cancelled
+from . import printer_service, task_service
 
 # ============================================================
 # 元素类型白名单
@@ -90,12 +87,14 @@ def _draw_page(api, elements: list[dict]) -> None:
         method(**params)
 
 
-def _print_page(api, page_elements: list[dict], job: dict, copies: int) -> None:
+def _print_page(api, page_elements: list[dict], job: dict, copies: int, task_id: str) -> None:
     """打印一页标签（含 copies 份）。"""
     width = float(job.get("width") or 40.0)
     height = float(job.get("height") or 30.0)
     orientation = int(job.get("orientation") or 0)
     for _ in range(max(1, int(copies or 1))):
+        if task_service.is_cancelled(task_id):
+            return
         if not api.start_job(width, height, orientation=orientation):
             raise RuntimeError("创建打印任务失败")
         _draw_page(api, page_elements)
@@ -126,48 +125,18 @@ def execute_print(
         copies: 每页打印份数
         on_progress: 进度回调 fn(current, total, status, item, error)
     """
-    api = printer_service.get_raw_api()
-    total = len(pages)
-
-    with _cancel_lock:
-        _cancel_flags[task_id] = False
-
-    if not api.open_printer(name=printer_name):
-        if on_progress:
-            on_progress(0, total, "error", None, f"无法连接打印机: {printer_name}")
-        return
-
-    for idx, page in enumerate(pages):
-        if _is_cancelled(task_id):
-            if on_progress:
-                on_progress(idx, total, "cancelled", None, None)
-            break
-
-        current = idx + 1
-        try:
-            if on_progress:
-                on_progress(current, total, "printing", None, None)
-            _print_page(api, page, job, copies)
-            if on_progress:
-                on_progress(current, total, "done", None, None)
-            time.sleep(0.3)  # 打印间隔，避免打印机缓冲区溢出
-        except Exception as e:  # noqa: BLE001
-            if on_progress:
-                on_progress(current, total, "error", None, str(e))
-
-    api.close_printer()
-
-    with _cancel_lock:
-        _cancel_flags.pop(task_id, None)
-
-    if on_progress:
-        on_progress(total, total, "finished", None, None)
+    task_service.run_batch(
+        task_id, pages, printer_name,
+        lambda api, page: _print_page(api, page, job, copies, task_id),
+        on_progress,
+    )
 
 
 # ============================================================
 # 预览（JSON 模式，与 label_service.generate_preview 一致）
 # ============================================================
 
+@printer_service.serialized
 def generate_preview(
     pages: list[list[dict]],
     printer_name: str = "",
@@ -215,26 +184,14 @@ def generate_preview(
             cleaned.append(e)
         job_pages.append(cleaned)
 
-    result = api.print(
-        0x0082,  # 透明底色预览
-        printerInfo={"printerName": printer_service.get_printer_info().get("name", "")},
-        jobInfo=job_info,
-        jobPages=job_pages,
-    )
-
-    if isinstance(result, dict) and result.get("previewData"):
-        data = result["previewData"][0]
-        if isinstance(data, str):
-            return data
-        if isinstance(data, list):
-            return ''.join(data)
-    return ""
+    return printer_service.preview(job_info, job_pages)
 
 
 # ============================================================
 # 原始指令通道（高级：直接透传打印机指令）
 # ============================================================
 
+@printer_service.serialized
 def print_raw(data: str, printer_name: str, copies: int = 1) -> bool:
     """直接发送原始打印指令（TSPL / CPCL / ESC-POS 等）。"""
     api = printer_service.get_raw_api()

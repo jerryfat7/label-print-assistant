@@ -1,0 +1,14 @@
+{
+  "host": "127.0.0.1",
+  "port": 4050,
+  "custom_port": 4051,
+  "custom_token": "",
+  "sdk_host": "127.0.0.1",
+  "sdk_port": 15216,
+  "sdk_timeout": 10,
+  "font_name": "Noto Sans CJK SC",
+  "log_dir": "./logs",
+  "log_level": "info",
+  "helper_executable": "",
+  "helper_lib_dir": ""
+}

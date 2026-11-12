@@ -49,22 +49,23 @@ python -m venv .venv-build
 
 ## Linux
 
-共用业务代码保存在 `webapp/`，Linux 双端口启动入口尚待实现。
-安装 Python 依赖：
+Linux 与 Windows 使用同一份业务代码，已有单进程双端口入口、普通用户安装和进程守护脚本。
+Python 3.11 依赖版本已在飞牛 x86_64 验证。从仓库根目录执行：
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-linux.txt
+bash linux/install.sh
+# 编辑生成的配置，指定助手地址和需要监听的网卡
+bash linux/service.sh start
 ```
 
-仅调试主服务时，可在打印助手运行后执行：
+前台调试：
 
 ```bash
-.venv/bin/python -m uvicorn webapp.main:app --host 0.0.0.0 --port 4050 --workers 1
+.venv/bin/python -m webapp.server --config /path/to/config.json
 ```
 
-这条命令只启动 4050，不会启动 4051。现有 SDK 实例和任务状态保存在进程内，
-迁移时需保留共享状态，不应直接开启多个 worker 或把双端口拆成独立进程。
+配置、字体、自启动和回退见 [Linux 说明](linux/README.md)。
+软件测试通过不代表物理出纸通过，实测范围见 [验收记录](linux/VALIDATION.md)。
 
 ## 代码协作与发布
 
@@ -79,5 +80,5 @@ Windows 和 NAS 各自克隆同一个仓库，通过提交、推送和拉取同�
 自动检查可以验证导入、接口和标签参数；实际出纸、尺寸、扫码、USB 重连和
 NAS 重启恢复必须在连接 P1 的设备上验收。
 
-当前依赖清单用于复现项目所需依赖类型，尚未锁定所有依赖版本。
+公共依赖用于 Windows/Linux 共用代码；Linux Python 3.11 另有实测版本约束。
 对外接口见 [API 文档](webapp/API.md)。
