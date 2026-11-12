@@ -1,5 +1,7 @@
 # 标签打印助手 API 文档
 
+> 姓名、手机号和详细地址均为脱敏格式示例；含 `*` 的输入仅用于展示结构，实际测试请替换为测试数据。
+
 > 版本: v2.1 | 主服务: `http://<host>:4050` | 通用打印接口: `http://<host>:4051` | 协议: HTTP/1.1 REST + SSE
 
 ---
@@ -124,7 +126,7 @@ POST /api/address/parse
 **请求:**
 ```json
 {
-    "text": "张** 138****0000 浙江省杭州市某区某路***号\n李四 139****0000 北京市某区某路***号"
+    "text": "张** 138****0000 浙江省杭州市某区某路***号\n李** 139****0000 北京市某区某路***号"
 }
 ```
 
@@ -343,7 +345,7 @@ POST /preview
     "job": {"width": 40, "height": 30, "gapType": 2, "darkness": 5, "speed": 2},
     "pages": [
         [
-            {"type": "text", "text": "张三", "x": 0, "y": 0, "width": 40, "height": 8, "fontHeight": 5, "horizontalAlignment": 1},
+            {"type": "text", "text": "张**", "x": 0, "y": 0, "width": 40, "height": 8, "fontHeight": 5, "horizontalAlignment": 1},
             {"type": "barcode", "text": "6901234567890", "x": 0, "y": 12, "width": 28, "height": 8}
         ]
     ]
@@ -375,7 +377,7 @@ POST /print
     "copies": 1,
     "job": {"width": 40, "height": 30},
     "pages": [[
-        {"type": "text", "text": "张三", "x": 0, "y": 0, "width": 40, "height": 8, "fontHeight": 5},
+        {"type": "text", "text": "张**", "x": 0, "y": 0, "width": 40, "height": 8, "fontHeight": 5},
         {"type": "qrcode", "text": "https://example.com", "x": 28, "y": 12, "width": 12, "height": 12}
     ]]
 }
@@ -460,7 +462,7 @@ curl -X POST http://127.0.0.1:4051/print \
     "copies": 1,
     "job": {"width": 40, "height": 30},
     "pages": [[
-      {"type": "text", "text": "张三", "x": 0, "y": 0, "width": 40, "height": 8, "fontHeight": 5},
+      {"type": "text", "text": "张**", "x": 0, "y": 0, "width": 40, "height": 8, "fontHeight": 5},
       {"type": "barcode", "text": "6901234567890", "x": 0, "y": 12, "width": 28, "height": 8},
       {"type": "qrcode", "text": "https://example.com", "x": 30, "y": 12, "width": 10, "height": 10}
     ]]

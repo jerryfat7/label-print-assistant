@@ -82,3 +82,7 @@ NAS 重启恢复必须在连接 P1 的设备上验收。
 
 公共依赖用于 Windows/Linux 共用代码；Linux Python 3.11 另有实测版本约束。
 对外接口见 [API 文档](webapp/API.md)。
+
+公开文档中的姓名、手机号和详细地址只使用脱敏示例。提交前可执行
+`python tools/check_public_docs.py`；CI 也会检查未脱敏的手机号和门牌地址。
+本地启用提交检查：`git config core.hooksPath .githooks`。检查结果只显示位置，不输出匹配值。
