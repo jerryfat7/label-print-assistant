@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+set -eu
+if [ -n "${LABEL_PYTHON:-}" ]; then
+  exec "$LABEL_PYTHON" tools/check_public_docs.py --staged
+elif [ -x .venv-build/Scripts/python.exe ]; then
+  exec .venv-build/Scripts/python.exe tools/check_public_docs.py --staged
+elif [ -x .venv/bin/python ]; then
+  exec .venv/bin/python tools/check_public_docs.py --staged
+else
+  exec python3 tools/check_public_docs.py --staged
+fi
