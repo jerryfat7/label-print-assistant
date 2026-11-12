@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖨️ 标签打印助手</title>
+    <!-- Bootstrap 5 CSS (带 fallback: jsdelivr → bootcdn 国内镜像) -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container-fluid py-3" style="max-width: 1200px;">
+
+    <!-- ======== 顶部标题栏 ======== -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0">🖨️ 标签打印助手</h4>
+        <span class="badge bg-secondary" id="strategy-badge">策略: --</span>
+    </div>
+
+    <!-- ======== 主内容区：左右两栏 ======== -->
+    <div class="row g-3">
+
+        <!-- ======== 左栏：地址输入 ======== -->
+        <div class="col-md-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-journal-text"></i> 收货地址</span>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary btn-sm" id="btn-import" title="从文件导入">
+                            <i class="bi bi-folder2-open"></i> 导入
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" id="btn-clear-input" title="清空">
+                            <i class="bi bi-trash"></i> 清空
+                        </button>
+                    </div>
+                    <input type="file" id="file-input" accept=".txt,.csv" style="display:none">
+                </div>
+                <div class="card-body p-0">
+                    <textarea id="input-area" class="form-control border-0 h-100"
+                              style="min-height: 320px; resize: vertical;"
+                              placeholder="每行一条收货地址，格式：姓名  电话  详细地址&#10;例如：&#10;AAA  137xxxx  福建省福州市鼓楼区xxx&#10;BBB  138xxxx  浙江省杭州市西湖区yyy"></textarea>
+                </div>
+                <div class="card-footer text-muted small">
+                    <i class="bi bi-info-circle"></i>
+                    姓名、电话、地址之间用空格/Tab隔开即可自动解析
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== 右栏：解析预览 ======== -->
+        <div class="col-md-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-table"></i> 解析预览 <span class="badge bg-primary ms-1" id="item-count">0</span></span>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary btn-sm" id="btn-select-all">全选</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="btn-invert">反选</button>
+                        <button class="btn btn-outline-danger btn-sm" id="btn-delete-selected" disabled>删除选中</button>
+                    </div>
+                </div>
+                <div class="card-body p-0" style="overflow-y: auto; max-height: 400px;">
+                    <table class="table table-hover table-sm mb-0" id="preview-table">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width:36px"><input type="checkbox" id="check-all" title="全选/取消全选"></th>
+                                <th style="width:15%">姓名</th>
+                                <th style="width:22%">电话</th>
+                                <th style="width:28%">地址(到市)</th>
+                                <th style="width:35%">完整地址</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <tr id="empty-row">
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    请在左侧输入收货地址，或从文件导入
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /row -->
+
+    <!-- ======== 底部控制栏 ======== -->
+    <div class="card shadow-sm mt-3">
+        <div class="card-body py-2">
+            <div class="row align-items-center g-2">
+
+                <!-- 打印机选择 -->
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-printer"></i></span>
+                        <select class="form-select" id="printer-select">
+                            <option value="">-- 未检测到打印机 --</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" id="btn-refresh-printer" title="刷新打印机">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 模板设置面板（可折叠） -->
+                <div class="col-md-5">
+                    <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#template-panel" aria-expanded="false">
+                        <i class="bi bi-sliders"></i> 模板设置
+                    </button>
+                    <div class="collapse mt-2" id="template-panel">
+                        <div class="card card-body bg-light py-2 px-3">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">标题字号(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-title-font"
+                                           value="2.5" min="1" max="8" step="0.1">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">姓名字号(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-name-font"
+                                           value="5.0" min="1" max="10" step="0.1">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">电话字号(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-phone-font"
+                                           value="3.2" min="1" max="8" step="0.1">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">地址字号(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-address-font"
+                                           value="3.2" min="1" max="8" step="0.1">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">标题Y(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-title-y"
+                                           value="1" min="0" max="28" step="0.5">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">姓名Y(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-name-y"
+                                           value="6" min="0" max="28" step="0.5">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">电话Y(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-phone-y"
+                                           value="14" min="0" max="28" step="0.5">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0 small">地址Y(mm)</label>
+                                    <input type="number" class="form-control form-control-sm" id="tpl-address-y"
+                                           value="20" min="0" max="28" step="0.5">
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-secondary" id="btn-reset-template">恢复默认</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 打印浓度/速度/份数 -->
+                <div class="col-md-2">
+                    <div class="row g-1">
+                        <div class="col-4">
+                            <label class="form-label mb-0 small">份数</label>
+                            <input type="number" class="form-control form-control-sm" id="print-copies"
+                                   value="1" min="1" max="99">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-0 small">浓度</label>
+                            <input type="number" class="form-control form-control-sm" id="print-darkness"
+                                   value="5" min="0" max="14" step="1">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-0 small">速度</label>
+                            <select class="form-select form-select-sm" id="print-speed">
+                                <option value="0">最慢</option>
+                                <option value="1">较慢</option>
+                                <option value="2" selected>正常</option>
+                                <option value="3">较快</option>
+                                <option value="4">最快</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="col-md-2 d-flex gap-1 justify-content-end">
+                    <button class="btn btn-outline-primary btn-sm" id="btn-preview"
+                            title="预览当前选中行的标签效果">
+                        <i class="bi bi-eye"></i> 预览
+                    </button>
+                    <button class="btn btn-success btn-sm" id="btn-print">
+                        <i class="bi bi-play-fill"></i> 打印 <span id="btn-print-count">(0)</span>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm d-none" id="btn-stop" title="停止打印">
+                        <i class="bi bi-stop-fill"></i> 停止
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ======== 进度条 ======== -->
+    <div class="mt-2" id="progress-container" style="display:none;">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="progress flex-grow-1" style="height:6px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                     id="progress-bar" style="width:0%"></div>
+            </div>
+            <small class="text-muted text-nowrap" id="progress-text">0/0</small>
+        </div>
+        <small class="text-muted" id="progress-status"></small>
+    </div>
+
+</div><!-- /container -->
+
+<!-- 预览弹窗 -->
+<div class="modal fade" id="preview-modal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <span class="modal-title small"><i class="bi bi-eye"></i> 标签预览</span>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                <img id="preview-image" src="" alt="预览图" class="img-fluid border"
+                     style="max-width: 280px;">
+                <div id="preview-placeholder" class="text-muted py-4">
+                    <i class="bi bi-image" style="font-size:3rem;"></i>
+                    <p class="mt-2 small">请先选择一行数据后点"预览"</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+
+</body>
+</html>

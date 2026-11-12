@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+cpca
+# cpca 0.5.5 imports pkg_resources at runtime.
+setuptools<81
+./dtpweb-2.5.20250212-py3-none-any.whl

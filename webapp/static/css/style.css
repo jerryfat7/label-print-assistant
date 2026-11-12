@@ -1,0 +1,82 @@
+/* ============================================================
+   标签打印助手 —— 自定义样式
+   ============================================================ */
+
+/* 表格行可编辑样式 */
+#preview-table td[contenteditable="true"] {
+    cursor: text;
+    transition: background-color 0.15s;
+}
+#preview-table td[contenteditable="true"]:focus {
+    background-color: #fff3cd !important;
+    outline: 2px solid #ffc107;
+    outline-offset: -2px;
+}
+
+/* 编辑过的行高亮标记 */
+#preview-table tr.edited td {
+    background-color: #fef9e7;
+}
+#preview-table tr.edited td:first-child::before {
+    content: "✏️ ";
+    font-size: 0.7rem;
+}
+
+/* 解析失败行红色标记 */
+#preview-table tr.parse-error td {
+    background-color: #fdeaea;
+}
+
+/* 表格复选框列 */
+#preview-table th:first-child,
+#preview-table td:first-child {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* 紧凑表格 */
+#preview-table td {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+/* 表头粘性 */
+#preview-table thead.sticky-top {
+    top: 0;
+    z-index: 1;
+}
+
+/* 表格行悬停 */
+#preview-table tbody tr:hover td {
+    background-color: rgba(13, 110, 253, 0.04);
+}
+
+/* 卡片阴影优化 */
+.card {
+    border: none;
+}
+
+/* textarea 无边框 */
+#input-area {
+    font-family: "Courier New", Consolas, monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* 进度条 */
+#progress-container {
+    transition: opacity 0.3s;
+}
+
+/* 模板面板内元素 */
+#template-panel input[type="number"] {
+    text-align: center;
+}
+
+/* 响应式：小屏幕下控制栏换行 */
+@media (max-width: 768px) {
+    .card-body .row > [class*="col-"] {
+        margin-bottom: 0.5rem;
+    }
+}

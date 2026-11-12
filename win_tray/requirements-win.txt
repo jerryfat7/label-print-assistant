@@ -1,0 +1,7 @@
+# Windows 托盘版运行 & 打包依赖
+-r ../requirements-common.txt
+pystray
+Pillow
+pywin32
+# 打包工具（仅构建机需要）
+pyinstaller

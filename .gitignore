@@ -1,0 +1,36 @@
+# Python environments and generated files
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local editor settings
+.vscode/
+.idea/
+
+# Build products and downloaded investigation artifacts
+/build/
+/dist/
+/output/
+
+# Machine-specific settings, logs and data
+.env
+.env.*
+!.env.example
+config.local.*
+/LabelPrintAssistant/
+*.log
+*.log.*
+*.sqlite
+*.sqlite3
+*.db
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store
