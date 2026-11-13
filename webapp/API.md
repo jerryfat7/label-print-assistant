@@ -56,6 +56,10 @@ GET /api/health
 {"status": "ok", "strategy": "CpcaStrategy"}
 ```
 
+地址解析支持姓名、电话与详细地址分行粘贴。同一收件人的地址续行会合并；
+遇到下一条含手机号的收件信息会开始新记录，空行也可显式分隔记录。
+返回的 `index` 按收件人编号，不再按物理行编号；`fullAddress` 保留完整地址内容。
+
 `GET /api/readiness` 额外检查助手连接，返回 `ready`、`printers`、`printReady`。
 `ready` 表示助手可通信，`printReady` 表示发现了设备，均不保证实际出纸。
 

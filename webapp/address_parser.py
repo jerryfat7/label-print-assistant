@@ -29,7 +29,74 @@ class AddressItem:
 # ============================================================
 
 # 手机号正则（1 开头的 11 位数字）
-_PHONE_RE = re.compile(r'1[3-9]\d{9}')
+_PHONE_RE = re.compile(r'(?<!\d)1[3-9]\d{9}(?!\d)')
+
+
+def _unwrap(text: str) -> str:
+    """Remove enclosing copy/paste brackets, retaining parentheses inside addresses."""
+    text = text.strip()
+    for left, right in [('（', '）'), ('(', ')')]:
+        if text.startswith(left) and text.endswith(right):
+            depth = 0
+            for index, character in enumerate(text):
+                depth += (character == left) - (character == right)
+                if depth == 0 and index < len(text) - 1:
+                    break
+            else:
+                if depth == 0:
+                    return text[1:-1].strip()
+    return text
+
+
+def _address_continuation(text: str) -> bool:
+    keywords = r'省|自治区|市|区|县|街道|乡|镇|村|路|街|巷|弄|小区|社区|园区|单元|号楼|栋|幢|大厦|公寓|室|楼'
+    return bool(re.search(keywords, text)) and (
+        len(text) >= 4 or bool(re.search(r'\d', text)) or
+        (len(text) >= 3 and text.endswith(('省', '市', '区', '县'))))
+
+
+def _logical_records(text: str) -> list[str]:
+    """Phone-bearing headers begin records; following address lines belong to them."""
+    lines = text.splitlines()
+    records = []
+    current = []
+
+    def flush():
+        if current:
+            records.append('\n'.join(current))
+            current.clear()
+
+    for index, raw in enumerate(lines):
+        line = raw.strip()
+        if not line:
+            flush()  # Blank lines explicitly separate records.
+            continue
+        phone = _PHONE_RE.search(line)
+        if phone:
+            # Also support name / phone / address on three separate lines.
+            phone_only_prefix = not line[:phone.start()].strip(' （(,，;；')
+            preceding_name = (len(current) == 1 and not _PHONE_RE.search(current[0]) and
+                              not _address_continuation(current[0]))
+            if not (preceding_name and phone_only_prefix):
+                flush()
+            current.append(line)
+            continue
+        if current:
+            joined = '\n'.join(current)
+            has_phone = bool(_PHONE_RE.search(joined))
+            if has_phone:
+                _, _, address = _split_line(joined)
+                next_line = lines[index + 1].strip() if index + 1 < len(lines) else ''
+                next_phone = _PHONE_RE.search(next_line)
+                next_is_phone_line = bool(next_phone and not next_line[:next_phone.start()].strip(' （(,，;；'))
+                if (next_is_phone_line and not _address_continuation(line)) or (
+                        address and not _address_continuation(line)):
+                    flush()
+            elif not _address_continuation(line):
+                flush()
+        current.append(line)
+    flush()
+    return records
 
 
 def _split_line(text: str) -> tuple[str, str, str]:
@@ -42,7 +109,7 @@ def _split_line(text: str) -> tuple[str, str, str]:
 
     返回 (name, phone, address)，失败时对应字段为空串。
     """
-    s = text.strip()
+    s = re.sub(r'[\r\n]+', ' ', _unwrap(text))
     if not s:
         return '', '', ''
 
@@ -110,9 +177,8 @@ class AddressStrategy(ABC):
         )
 
     def parse_batch(self, text: str) -> list[AddressItem]:
-        """批量解析多行文本"""
-        lines = [ln.strip() for ln in text.strip().splitlines() if ln.strip()]
-        return [self.parse_line(ln, i) for i, ln in enumerate(lines)]
+        """批量解析收货信息，允许同一收件人的详细地址换行。"""
+        return [self.parse_line(record, i) for i, record in enumerate(_logical_records(text))]
 
 
 # ============================================================

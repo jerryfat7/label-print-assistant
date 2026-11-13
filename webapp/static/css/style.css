@@ -74,6 +74,17 @@
     text-align: center;
 }
 
+/* Reserve room for two Chinese characters plus the select arrow. */
+.print-parameter-grid {
+    display: grid;
+    grid-template-columns: minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) minmax(5.5rem, 1.3fr);
+    gap: 0.4rem;
+}
+
+#print-speed {
+    min-width: 5.5rem;
+}
+
 /* 响应式：小屏幕下控制栏换行 */
 @media (max-width: 768px) {
     .card-body .row > [class*="col-"] {

@@ -8,7 +8,7 @@
     <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="/static/css/style.css" rel="stylesheet">
+    <link href="/static/css/style.css?v=20261113-layout" rel="stylesheet">
 </head>
 <body>
 
@@ -41,11 +41,11 @@
                 <div class="card-body p-0">
                     <textarea id="input-area" class="form-control border-0 h-100"
                               style="min-height: 320px; resize: vertical;"
-                              placeholder="每行一条收货地址，格式：姓名  电话  详细地址&#10;例如：&#10;AAA  137xxxx  福建省福州市鼓楼区xxx&#10;BBB  138xxxx  浙江省杭州市西湖区yyy"></textarea>
+                              placeholder="支持整条粘贴，电话与详细地址之间可以换行。&#10;格式示例：&#10;张**  138****0000&#10;某省某市某区某路***号&#10;&#10;多条信息可用空行分隔；实际解析请替换示例数据。"></textarea>
                 </div>
                 <div class="card-footer text-muted small">
                     <i class="bi bi-info-circle"></i>
-                    姓名、电话、地址之间用空格/Tab隔开即可自动解析
+                    支持空格、Tab 和地址换行；多条信息可用空行分隔
                 </div>
             </div>
         </div>
@@ -92,7 +92,7 @@
             <div class="row align-items-center g-2">
 
                 <!-- 打印机选择 -->
-                <div class="col-md-3">
+                <div class="col-12 col-md-6 col-xl-3">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text"><i class="bi bi-printer"></i></span>
                         <select class="form-select" id="printer-select">
@@ -105,7 +105,7 @@
                 </div>
 
                 <!-- 模板设置面板（可折叠） -->
-                <div class="col-md-5">
+                <div class="col-12 col-md-6 col-xl-4">
                     <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse"
                             data-bs-target="#template-panel" aria-expanded="false">
                         <i class="bi bi-sliders"></i> 模板设置
@@ -162,20 +162,20 @@
                 </div>
 
                 <!-- 打印浓度/速度/份数 -->
-                <div class="col-md-2">
-                    <div class="row g-1">
-                        <div class="col-4">
-                            <label class="form-label mb-0 small">份数</label>
+                <div class="col-12 col-md-8 col-xl-3">
+                    <div class="print-parameter-grid">
+                        <div>
+                            <label for="print-copies" class="form-label mb-0 small">份数</label>
                             <input type="number" class="form-control form-control-sm" id="print-copies"
                                    value="1" min="1" max="99">
                         </div>
-                        <div class="col-4">
-                            <label class="form-label mb-0 small">浓度</label>
+                        <div>
+                            <label for="print-darkness" class="form-label mb-0 small">浓度</label>
                             <input type="number" class="form-control form-control-sm" id="print-darkness"
                                    value="5" min="0" max="14" step="1">
                         </div>
-                        <div class="col-4">
-                            <label class="form-label mb-0 small">速度</label>
+                        <div>
+                            <label for="print-speed" class="form-label mb-0 small">速度</label>
                             <select class="form-select form-select-sm" id="print-speed">
                                 <option value="0">最慢</option>
                                 <option value="1">较慢</option>
@@ -188,7 +188,7 @@
                 </div>
 
                 <!-- 操作按钮 -->
-                <div class="col-md-2 d-flex gap-1 justify-content-end">
+                <div class="col-12 col-md-4 col-xl-2 d-flex flex-wrap gap-1 justify-content-end">
                     <button class="btn btn-outline-primary btn-sm" id="btn-preview"
                             title="预览当前选中行的标签效果">
                         <i class="bi bi-eye"></i> 预览

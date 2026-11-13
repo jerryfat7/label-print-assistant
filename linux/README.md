@@ -21,6 +21,25 @@ Python 3.11 使用 `constraints-py311.txt` 中的实测版本；其他 Python �
 字体来自 Noto 官方仓库的固定提交，下载后校验 SHA256，保存原始 SIL Open Font License。
 不需要 sudo，也不会修改 CUPS 或其他打印机队列。
 
+### P1 持久 USB 授权
+
+如果助手能发现 USB 设备却无法读取名称，先检查运行服务的账户是否能读写设备节点。
+一次性的 `setfacl` 授权可能随拔插失效；持久授权使用 P1 的厂商和产品 ID，
+只匹配该型号的 USB 设备，不依赖 Bus/Device 编号。
+
+在实际运行服务的普通用户终端中执行：
+
+```bash
+bash linux/install_usb_rule.sh --user "$(id -un)" --dry-run
+sudo bash linux/install_usb_rule.sh --user "$(id -un)"
+```
+
+安装器写入 `/etc/udev/rules.d/99-label-print-assistant-p1.rules`，
+让指定用户成为 P1 设备节点的拥有者，使用 `0660` 权限；保留系统原有设备组。
+它会重载规则，并只对匹配 P1 的设备触发 change 事件。此步需要一次 sudo，
+之后打印服务仍以普通用户运行。插拔后应再次检查名称和连接；整机重启恢复也需实测。
+安装器不会写入收货信息、密码、设备序列号或固定的个人用户名。
+
 ## 配置与启动
 
 默认配置文件为 `$LABEL_STATE_DIR/config.json`，可用 `LABEL_CONFIG` 指定其他路径。
