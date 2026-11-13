@@ -251,6 +251,35 @@ class ServiceTests(unittest.TestCase):
             with socket.socket() as probe:
                 self.assertNotEqual(probe.connect_ex(("127.0.0.1", main_port)), 0)
 
+    def test_connected_linux_dpi_response_is_numeric_in_info_and_preview(self):
+        self.api.is_printer_opened.return_value = True
+        self.api.get_printer_name.return_value = "test-printer"
+        self.api.get_printer_dpi.return_value = {
+            "statusCode": 0, "resultInfo": {"dpiX": 203, "dpiY": 203}}
+        self.api.get_print_darkness.return_value = 5
+        self.api.get_print_speed.return_value = 2
+        self.api.get_gap_type.return_value = 2
+        self.assertEqual(printer_service.get_printer_info()["dpi"], 203)
+        label_service.generate_preview("连接测试", "", "")
+        self.assertEqual(self.api.print.call_args.kwargs["printerInfo"]["printerDPI"], 203)
+
+    def test_dpi_normalization_accepts_windows_number_and_rejects_errors(self):
+        cases = [(300, 300), ({"dpiX": 203, "dpiY": 203}, 203),
+                 ({"statusCode": 21, "resultInfo": "not opened"}, 0),
+                 (None, 0), (False, 0), (float("nan"), 0), (-1, 0)]
+        for value, expected in cases:
+            with self.subTest(value=value):
+                self.assertEqual(printer_service._dpi_value(value), expected)
+
+    def test_unnamed_device_does_not_claim_print_readiness(self):
+        self.api.get_printers.return_value = [{"name": "", "type": 9}]
+        status, body = asyncio.run(request(app, "/api/readiness"))
+        state = json.loads(body)
+        self.assertEqual(status, 200)
+        self.assertTrue(state["ready"])
+        self.assertFalse(state["printReady"])
+        self.assertIn("deviceAccessWarning", state)
+
 
 if __name__ == "__main__":
     unittest.main()

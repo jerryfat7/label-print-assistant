@@ -22,7 +22,9 @@ def readiness():
     """Software readiness; detecting a helper is not proof of physical output."""
     state = printer_service.status()
     state["printers"] = printer_service.get_printers() if state["ready"] else []
-    state["printReady"] = bool(state["printers"])
+    state["printReady"] = any(item["name"] for item in state["printers"])
+    if state["printers"] and not state["printReady"]:
+        state["deviceAccessWarning"] = "已发现设备但无法读取名称，请检查 USB 访问权限"
     return state
 
 

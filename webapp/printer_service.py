@@ -5,6 +5,7 @@
 """
 
 import threading
+import math
 from contextlib import contextmanager
 from functools import wraps
 from typing import Optional
@@ -114,13 +115,30 @@ def close_printer() -> None:
         _api.close_printer()
 
 
+def _dpi_value(value, default: int = 0) -> int:
+    """Normalize vendor numbers, axis objects, and full HTTP response objects."""
+    if isinstance(value, dict) and "statusCode" in value:
+        if value.get("statusCode") != 0:
+            return default
+        value = value.get("resultInfo")
+    if isinstance(value, dict):
+        value = value.get("dpiX", value.get("dpi", value.get("dpiY")))
+    if isinstance(value, bool):
+        return default
+    try:
+        number = float(value)
+        return int(number) if math.isfinite(number) and number >= 1 else default
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
 def get_printer_info() -> dict:
     """获取已连接打印机的详细信息"""
     with _lock:
         _ensure_initialized()
         return {
             "name": _api.get_printer_name() or "",
-            "dpi": _api.get_printer_dpi() or 0,
+            "dpi": _dpi_value(_api.get_printer_dpi()),
             "darkness": _api.get_print_darkness() or 5,
             "speed": _api.get_print_speed() or 2,
             "gapType": _api.get_gap_type() or 2,
@@ -152,7 +170,7 @@ def preview(job_info: dict, pages: list[list[dict]]) -> str:
         name = _api.get_printer_name()
         if name:
             info["printerName"] = name
-        info["printerDPI"] = _api.get_printer_dpi() or 203
+        info["printerDPI"] = _dpi_value(_api.get_printer_dpi(), default=203)
     normalized = []
     for page in pages:
         elements = []
